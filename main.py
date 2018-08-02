@@ -169,6 +169,38 @@ def diagonal_addition_eigenvecs(fig, ax, matrix, upper_range=5):
     static_elems, animated_elems = [], [grid, eigenvec1_anim, eigenvec2_anim]
     return static_elems, animated_elems
 
+def solve_1d_dyad_approx(matrix):
+    # Initialize a unit length vector randomly on the unit sphere.
+    a, b = np.random.randn(matrix.shape[0]), np.random.randn(matrix.shape[1])
+    a /= np.linalg.norm(a)
+    b /= np.linalg.norm(b)
+    matrix_col_norm = np.linalg.norm(matrix, axis=0)
+    while True:
+        prev_a, prev_b = np.copy(a), np.copy(b)
+        # Fix b, solve for minimal .
+        w = np.square(b)
+        a = np.dot((1 / b) * matrix, w) / np.sum(w)
+        # Project each column onto a.
+        b = np.dot(a / np.linalg.norm(a), matrix) / np.linalg.norm(a)
+        if np.allclose(a, prev_a, 1e-10) and np.allclose(b, prev_b, 1e-10):
+            break
+    return a, b
+
+def solve_nd_dyad_approx(matrix, n):
+    curr_matrix = matrix
+    vecs, scalars = [], []
+    for i in range(n):
+        a, b = solve_1d_dyad_approx(curr_matrix)
+        curr_matrix = curr_matrix - np.outer(a, b)
+        vecs.append(a)
+        scalars.append(b)
+    vecs = np.stack(vecs, axis=1)
+    scalars = np.stack(scalars, axis=0)
+    return vecs, scalars
+
+def dyad_1d_em(fig, ax, matrix):
+    a, b = solve_nd_dyad_approx(matrix, 2)
+
 # static_elems, animated_elems = eigenvec_mult(fig, ax, matrix)
 # static_elems, animated_elems = diagonal_addition_eigenvecs_cols(fig, ax, matrix)
 static_elems, animated_elems = diagonal_addition_eigenvecs(fig, ax, matrix)
