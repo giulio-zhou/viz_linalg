@@ -53,6 +53,27 @@ class LinearInterpQuad(AnimatedElement):
         interm_pts = (1 - alpha) * self.pts + alpha * self.end_pts
         self.quad.set_xy(interm_pts)
 
+class LinearMatrixInterpEigenvector(AnimatedElement):
+    def __init__(self, ax, index, matrix, end_matrix):
+        self.vals, self.vecs = np.linalg.eig(matrix)
+        self.end_vals, self.end_vecs = np.linalg.eig(matrix)
+        self.index = index
+        self.matrix = matrix
+        self.end_matrix = end_matrix
+        self.arrow = ax.arrow(0, 0, self.vecs[0, index], self.vecs[1, index],
+                              head_width=1e-1)
+    def bounds(self):
+        coords = np.stack([self.vecs[:, self.index],
+                           self.end_vecs[:, self.index]], axis=0)
+        return coords
+    def render_obj(self):
+        return self.arrow
+    def update(self, alpha):
+        interm_matrix = (1 - alpha) * self.matrix + alpha * self.end_matrix
+        vals, vecs = np.linalg.eig(interm_matrix)
+        print(vecs)
+        self.arrow.set_xy([(0, 0), tuple(vecs[:, self.index])])
+
 class Animation():
     def __init__(self, fig, ax, static_elems, animated_elems, num_disp_pts):
         self.fig, self.ax = fig, ax
@@ -73,7 +94,6 @@ class Animation():
         for elem in self.animated_elems:
             bounding_coords.append(elem.bounds())
         bounding_coords = np.vstack(bounding_coords)
-        print(bounding_coords)
         self.ax.set_xlim([np.min(bounding_coords[:, 0]),
                           np.max(bounding_coords[:, 0])])
         self.ax.set_ylim([np.min(bounding_coords[:, 1]),
@@ -89,10 +109,13 @@ num_disp_points = 1e2
 #                    [4, 3]])
 matrix = np.array([[8, -1],
                    [1, 4]])
+# matrix = np.array([[2, 1],
+#                    [1, 2]])
 fig, ax = plt.subplots()
 
 def eigenvec_mult(fig, ax, matrix):
     vals, vecs = np.linalg.eig(matrix)
+    print("Eigenvalues: %s" % str(vals))
     end_vecs = vecs * vals
     xs, ys = [0, 0, 1, 1], [0, 1, 1, 0]
     pts = np.stack([xs, ys], axis=-1)
@@ -108,7 +131,7 @@ def eigenvec_mult(fig, ax, matrix):
     animated_elems = [grid, eigenvec1_anim, eigenvec2_anim]
     return static_elems, animated_elems
 
-def diagonal_addition_eigenvecs(fig, ax, matrix, rowspace=False):
+def diagonal_addition_eigenvec_cols(fig, ax, matrix, rowspace=False):
     vals, vecs = np.linalg.eig(matrix)
     xs, ys = [0, 0, 1, 1], [0, 1, 1, 0]
     pts = np.stack([xs, ys], axis=-1)
@@ -131,7 +154,23 @@ def diagonal_addition_eigenvecs(fig, ax, matrix, rowspace=False):
     animated_elems = [grid, column1_anim, column2_anim]
     return static_elems, animated_elems
 
+def diagonal_addition_eigenvecs(fig, ax, matrix, upper_range=5):
+    end_matrix = matrix + np.eye(2) * upper_range
+    xs, ys = [0, 0, 1, 1], [0, 1, 1, 0]
+    pts = np.stack([xs, ys], axis=-1)
+    end_pts1 = np.dot(matrix, pts.T).T
+    end_pts2 = np.dot(end_matrix, pts.T).T
+
+    grid = LinearInterpQuad(ax, end_pts1[:, 0], end_pts1[:, 1],
+                                end_pts2[:, 0], end_pts2[:, 1])
+    eigenvec1_anim = LinearMatrixInterpEigenvector(ax, 0, matrix, end_matrix)
+    eigenvec2_anim = LinearMatrixInterpEigenvector(ax, 1, matrix, end_matrix)
+
+    static_elems, animated_elems = [], [grid, eigenvec1_anim, eigenvec2_anim]
+    return static_elems, animated_elems
+
 # static_elems, animated_elems = eigenvec_mult(fig, ax, matrix)
+# static_elems, animated_elems = diagonal_addition_eigenvecs_cols(fig, ax, matrix)
 static_elems, animated_elems = diagonal_addition_eigenvecs(fig, ax, matrix)
 anim = Animation(fig, ax, static_elems, animated_elems, num_disp_points)
 anim.animate()
