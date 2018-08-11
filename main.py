@@ -169,7 +169,7 @@ def diagonal_addition_eigenvecs(fig, ax, matrix, upper_range=5):
     static_elems, animated_elems = [], [grid, eigenvec1_anim, eigenvec2_anim]
     return static_elems, animated_elems
 
-def solve_1d_dyad_approx(matrix):
+def solve_1d_dyad_approx(matrix, tol=1e-10):
     # Initialize a unit length vector randomly on the unit sphere.
     a, b = np.random.randn(matrix.shape[0]), np.random.randn(matrix.shape[1])
     a /= np.linalg.norm(a)
@@ -182,15 +182,34 @@ def solve_1d_dyad_approx(matrix):
         a = np.dot((1 / b) * matrix, w) / np.sum(w)
         # Project each column onto a.
         b = np.dot(a / np.linalg.norm(a), matrix) / np.linalg.norm(a)
-        if np.allclose(a, prev_a, 1e-10) and np.allclose(b, prev_b, 1e-10):
+        if np.allclose(a, prev_a, tol) and np.allclose(b, prev_b, tol):
             break
     return a, b
 
-def solve_nd_dyad_approx(matrix, n):
+def solve_1d_symm_dyad_approx(matrix, lr=1e-2, tol=1e-10):
+    # Initialize a unit length vector randomly on the unit sphere.
+    a = np.random.randn(matrix.shape[0])
+    a /= np.linalg.norm(a)
+    while True:
+        prev_a = np.copy(a)
+        partial = np.tile(np.expand_dims(a, axis=1), [1, len(a)])
+        partial += np.diag(a)
+        grad = -partial * (matrix - np.outer(a, a))
+        grad = np.sum(grad, axis=0)
+        a -= lr * grad
+        if np.allclose(a, prev_a, 1e-10):
+            break
+    b = a.T
+    return a, b
+
+def solve_nd_dyad_approx(matrix, n, symm=False):
     curr_matrix = matrix
     vecs, scalars = [], []
     for i in range(n):
-        a, b = solve_1d_dyad_approx(curr_matrix)
+        if symm:
+            a, b = solve_1d_symm_dyad_approx(curr_matrix)
+        else:
+            a, b = solve_1d_dyad_approx(curr_matrix)
         curr_matrix = curr_matrix - np.outer(a, b)
         vecs.append(a)
         scalars.append(b)
@@ -200,6 +219,9 @@ def solve_nd_dyad_approx(matrix, n):
 
 def dyad_1d_em(fig, ax, matrix):
     a, b = solve_nd_dyad_approx(matrix, 2)
+
+def symm_dyad_1d_em(fig, ax, matrix):
+    a, b = solve_nd_dyad_approx(matrix, 2, symm=True)
 
 # static_elems, animated_elems = eigenvec_mult(fig, ax, matrix)
 # static_elems, animated_elems = diagonal_addition_eigenvecs_cols(fig, ax, matrix)
