@@ -193,7 +193,6 @@ def solve_1d_symm_dyad_approx(matrix, lr=1e-2, tol=1e-10):
     while True:
         prev_a = np.copy(a)
         partial = np.tile(np.expand_dims(a, axis=1), [1, len(a)])
-        partial += np.diag(a)
         grad = -partial * (matrix - np.outer(a, a))
         grad = np.sum(grad, axis=0)
         a -= lr * grad
