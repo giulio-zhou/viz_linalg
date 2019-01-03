@@ -320,12 +320,28 @@ def solve_nd_symm_dyad_approx(matrix, n):
     scalars = np.stack(scalars, axis=0)
     return vecs, scalars
 
+def lr_triangular_matrix_decomp(matrix):
+    curr_matrix = matrix.astype(np.float32)
+    L, R = [], []
+    for i in range(len(matrix)):
+        row = curr_matrix[i]
+        col_coeff = curr_matrix[:, i] / row[i]
+        print(i, row, col_coeff)
+        curr_matrix = curr_matrix - np.outer(col_coeff, row)
+        L.append(col_coeff)
+        R.append(row)
+    L, R = np.stack(L, axis=1), np.stack(R, axis=0)
+    return L, R
+
 def dyad_1d_em(fig, ax, matrix):
     a, b = solve_nd_dyad_approx(matrix, 2)
 
 def symm_dyad_1d_em(fig, ax, matrix):
     a, b = solve_nd_symm_dyad_approx(matrix, 3)
     vals, vecs = np.linalg.eig(matrix)
+
+def lr_factorization(fig, ax, matrix):
+    a, b = lr_triangular_matrix_decomp(matrix)
 
 def symm_dyad_loss_path(fig, ax, matrix):
     a, b, a_hist = solve_1d_symm_dyad_approx(matrix, history=True)
@@ -391,6 +407,7 @@ def symm_dyad_loss_slice(fig, ax, matrix):
 test_fns = {'eigenvec_mult': eigenvec_mult,
             'diag_add_eigenvec': diagonal_addition_eigenvecs,
             'diag_add_eigenvec_cols': diagonal_addition_eigenvec_cols,
+            'lr': lr_factorization,
             'symm_dyad_loss_path': symm_dyad_loss_path,
             'symm_dyad_loss_slice': symm_dyad_loss_slice,
             'symm_dyad': symm_dyad_1d_em}
